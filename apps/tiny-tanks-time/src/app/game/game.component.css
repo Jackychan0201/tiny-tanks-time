@@ -1,0 +1,207 @@
+.game-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-family: 'Arial', sans-serif;
+  color: white;
+}
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.game-header h1 {
+  margin: 0;
+  font-size: 2rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.game-info {
+  display: flex;
+  gap: 2rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-field {
+  flex: 1;
+  position: relative;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.1) 0%, transparent 50%),
+    linear-gradient(45deg, #2c3e50 0%, #34495e 100%);
+  border: 3px solid #34495e;
+  margin: 1rem;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.3);
+}
+
+.tank {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  transition: all 0.1s ease;
+  z-index: 10;
+}
+
+.tank-body {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 3px solid rgba(0, 0, 0, 0.3);
+  box-shadow: 
+    0 0 10px rgba(0, 0, 0, 0.5),
+    inset 0 0 10px rgba(255, 255, 255, 0.2);
+  position: relative;
+}
+
+.tank-cannon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 30px;
+  background: linear-gradient(to bottom, #2c3e50, #34495e);
+  border-radius: 2px;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.current-player .tank-body {
+  border-color: #f39c12;
+  box-shadow: 
+    0 0 15px rgba(243, 156, 18, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.current-player .tank-cannon {
+  background: linear-gradient(to bottom, #f39c12, #e67e22);
+  box-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
+}
+
+.bullet {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: radial-gradient(circle, #f39c12, #e67e22);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(243, 156, 18, 0.8);
+  z-index: 5;
+  animation: bullet-glow 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes bullet-glow {
+  from {
+    box-shadow: 0 0 10px rgba(243, 156, 18, 0.8);
+  }
+  to {
+    box-shadow: 0 0 20px rgba(243, 156, 18, 1);
+  }
+}
+
+.controls {
+  padding: 1rem 2rem;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.controls h3 {
+  margin: 0 0 0.5rem 0;
+  color: #f39c12;
+}
+
+.controls p {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.start-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.start-screen h2 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.start-screen p {
+  font-size: 1.2rem;
+  margin-bottom: 2rem;
+  opacity: 0.9;
+}
+
+.start-button {
+  background: linear-gradient(45deg, #f39c12, #e67e22);
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: white;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+  transition: all 0.3s ease;
+  margin-bottom: 2rem;
+}
+
+.start-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+}
+
+.start-button:active {
+  transform: translateY(0);
+}
+
+.instructions {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 10px;
+  backdrop-filter: blur(10px);
+  max-width: 500px;
+}
+
+.instructions h3 {
+  color: #f39c12;
+  margin-bottom: 1rem;
+}
+
+.instructions ul {
+  text-align: left;
+  list-style: none;
+  padding: 0;
+}
+
+.instructions li {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.instructions li:last-child {
+  border-bottom: none;
+}
+
+.instructions li::before {
+  content: "🎯 ";
+  margin-right: 0.5rem;
+}

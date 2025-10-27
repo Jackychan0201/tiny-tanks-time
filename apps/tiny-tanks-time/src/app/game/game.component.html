@@ -1,0 +1,59 @@
+<div class="game-container">
+  <div class="game-header">
+    <h1>🎮 Tiny Tanks Time</h1>
+    <div class="game-info">
+      <p>Players: {{ players.length }}</p>
+      <p>Bullets: {{ bullets.length }}</p>
+    </div>
+  </div>
+
+  <div class="game-area" *ngIf="gameStarted; else startScreen">
+    <div class="game-field">
+      <!-- Players -->
+      <div 
+        *ngFor="let player of players" 
+        class="tank"
+        [style.left.px]="player.x - 25"
+        [style.top.px]="player.y - 25"
+        [style.transform]="'rotate(' + (player.angle * 180 / Math.PI) + 'deg)'"
+        [style.background-color]="player.color"
+        [class.current-player]="player.id === currentPlayer?.id"
+      >
+        <div class="tank-body"></div>
+        <div class="tank-cannon"></div>
+      </div>
+
+      <!-- Bullets -->
+      <div 
+        *ngFor="let bullet of bullets" 
+        class="bullet"
+        [style.left.px]="bullet.x - 3"
+        [style.top.px]="bullet.y - 3"
+        [style.transform]="'rotate(' + (bullet.angle * 180 / Math.PI) + 'deg)'"
+      ></div>
+    </div>
+
+    <div class="controls">
+      <h3>Controls:</h3>
+      <p>WASD or Arrow Keys - Move</p>
+      <p>Space - Shoot</p>
+    </div>
+  </div>
+
+  <ng-template #startScreen>
+    <div class="start-screen">
+      <h2>Welcome to Tiny Tanks Time!</h2>
+      <p>A real-time multiplayer tank battle game</p>
+      <button (click)="startGame()" class="start-button">Start Game</button>
+      <div class="instructions">
+        <h3>How to Play:</h3>
+        <ul>
+          <li>Use WASD or Arrow Keys to move your tank</li>
+          <li>Press Space to shoot bullets</li>
+          <li>Try to avoid other players' bullets</li>
+          <li>Have fun battling with friends!</li>
+        </ul>
+      </div>
+    </div>
+  </ng-template>
+</div>
