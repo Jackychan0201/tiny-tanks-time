@@ -27,12 +27,15 @@ export class GameService {
   private playerImmunitySubject = new BehaviorSubject<{id: string, immuneUntil: number} | null>(null);
 
   constructor() {
-    this.socket = io('http://localhost:3000', {
+    // Determine the backend URL based on environment
+    const backendUrl = this.getBackendUrl();
+    
+    this.socket = io(backendUrl, {
       transports: ['websocket']
     });
 
     this.socket.on('connect', () => {
-      console.log('Connected to game server');
+      console.log('Connected to game server at', backendUrl);
       this.playerId = this.socket.id || null;
     });
 
@@ -151,4 +154,26 @@ export class GameService {
   onPlayerImmunity(): Observable<{id: string, immuneUntil: number} | null> {
     return this.playerImmunitySubject.asObservable();
   }
+
+  private getBackendUrl(): string {
+    // In production, use the current domain
+    // In development, use localhost:3000
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const protocol = window.location.protocol;
+      
+      // If running on localhost or 127.0.0.1, use localhost:3000
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'http://localhost:3000';
+      }
+      
+      // For production (Railway, etc), connect to the same host
+      // The backend runs on the same domain, so just use current protocol and host
+      return `${protocol}//${hostname}:3000`;
+    }
+    
+    // Fallback for SSR or non-browser environments
+    return 'http://localhost:3000';
+  }
 }
+
