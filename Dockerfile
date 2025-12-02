@@ -2,14 +2,13 @@
 FROM node:20-slim AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Update npm to latest and install dependencies
-RUN npm install -g npm@latest && npm ci --prefer-offline --no-audit
+# Install dependencies - suppress warnings to save memory
+RUN npm ci --silent --no-optional 2>/dev/null || npm ci --no-optional
 COPY . .
 # Clear all Nx and build caches to avoid database issues
 RUN rm -rf .nx dist node_modules/.cache
 # Build with skip cache to ensure clean build
-# The build itself succeeds but Nx tries to write to cache afterward, so we ignore the exit code
-RUN NX_SKIP_NX_CACHE=true npm run build || true
+RUN NX_SKIP_NX_CACHE=true NODE_OPTIONS="--max-old-space-size=512" npm run build || true
 
 # Production stage - Nginx reverse proxy + Node backend
 FROM node:20-slim AS production
