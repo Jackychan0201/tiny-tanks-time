@@ -4,10 +4,10 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-# Clear Nx cache to avoid database issues
-RUN rm -rf .nx
-# Build both frontend and backend
-RUN npm run build
+# Clear all Nx and build caches to avoid database issues
+RUN rm -rf .nx dist node_modules/.cache
+# Build with skip cache to ensure clean build
+RUN NX_SKIP_NX_CACHE=true npm run build
 
 # Production stage - Nginx reverse proxy + Node backend
 FROM node:20-alpine AS production
