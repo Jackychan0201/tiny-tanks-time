@@ -4,6 +4,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# Clear Nx cache to avoid database issues
+RUN rm -rf .nx
+# Build both frontend and backend
 RUN npm run build
 
 # Production stage - single image serving both backend and frontend
