@@ -1,8 +1,9 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# Update npm to latest and install dependencies
+RUN npm install -g npm@latest && npm ci --prefer-offline --no-audit
 COPY . .
 # Clear all Nx and build caches to avoid database issues
 RUN rm -rf .nx dist node_modules/.cache
@@ -10,11 +11,11 @@ RUN rm -rf .nx dist node_modules/.cache
 RUN NX_SKIP_NX_CACHE=true npm run build
 
 # Production stage - Nginx reverse proxy + Node backend
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 WORKDIR /app
 
 # Install Nginx
-RUN apk add --no-cache nginx
+RUN apt-get update && apt-get install -y nginx && rm -rf /var/lib/apt/lists/*
 
 # Copy backend dist and dependencies
 COPY --from=builder /app/dist/apps/server ./dist/server
@@ -27,7 +28,7 @@ COPY --from=builder /app/dist/apps/tiny-tanks-time/browser ./public/frontend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Install production dependencies only
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --prefer-offline --no-audit
 
 # Expose port 8080 (Railway default port)
 EXPOSE 8080
