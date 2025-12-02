@@ -1,0 +1,3 @@
+# Ignore everything except Angular build output
+**
+!dist/apps/tiny-tanks-time/**
