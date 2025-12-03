@@ -8,8 +8,8 @@
     "start:frontend": "nx serve tiny-tanks-time",
     "start:all": "concurrently \"nx serve server\" \"nx serve tiny-tanks-time\"",
     "build": "nx build tiny-tanks-time && nx build server",
-    "start:render": "node dist/apps/server/main.js",
-    "build:render": "npx nx build server"
+    "build:server": "npx nx build server",
+    "serve:server": "npx nx serve server"
   },
   "private": true,
   "dependencies": {
