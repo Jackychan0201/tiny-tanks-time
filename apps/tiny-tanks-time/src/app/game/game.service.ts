@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
-import { Player, Bullet, Orb, Upgrade } from './game.component';
+import { Player, Bullet, Orb, Upgrade, Enemy } from './game.component';
 import { environment } from '../enironments/environment';
 
 @Injectable({
@@ -26,6 +26,7 @@ export class GameService {
   private orbCollectedSubject = new BehaviorSubject<string | null>(null);
   private levelUpOptionsSubject = new BehaviorSubject<Upgrade[] | null>(null);
   private playerImmunitySubject = new BehaviorSubject<{id: string, immuneUntil: number} | null>(null);
+  private playerExpUpdateSubject = new BehaviorSubject<any | null>(null);
 
   constructor() {
     const backendUrl = environment.backendUrl;
@@ -86,6 +87,10 @@ export class GameService {
     this.socket.on('playerImmunity', (data) => {
       this.playerImmunitySubject.next(data);
     });
+
+    this.socket.on('playerExpUpdate', (data) => {
+      this.playerExpUpdateSubject.next(data);
+    });
   }
 
   connect() {
@@ -108,6 +113,10 @@ export class GameService {
 
   selectUpgrade(upgradeId: string) {
     this.socket.emit('selectUpgrade', upgradeId);
+  }
+
+  debugLevelUp() {
+    this.socket.emit('debugLevelUp');
   }
 
   getPlayerId(): string | null {
@@ -156,5 +165,28 @@ export class GameService {
 
   onPlayerImmunity(): Observable<{id: string, immuneUntil: number} | null> {
     return this.playerImmunitySubject.asObservable();
+  }
+  
+  onPlayerExpUpdate(): Observable<any | null> {
+    return this.playerExpUpdateSubject.asObservable();
+  }
+
+  // Enemy Events
+  onEnemySpawned(): Observable<Enemy | null> {
+    return new Observable(observer => {
+      this.socket.on('enemySpawned', (enemy) => observer.next(enemy));
+    });
+  }
+
+  onEnemiesMoved(): Observable<Enemy[] | null> {
+    return new Observable(observer => {
+        this.socket.on('enemiesMoved', (enemies) => observer.next(enemies));
+    });
+  }
+
+  onEnemyDied(): Observable<string | null> {
+    return new Observable(observer => {
+        this.socket.on('enemyDied', (id) => observer.next(id));
+    });
   }
 }

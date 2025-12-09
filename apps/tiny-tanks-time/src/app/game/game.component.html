@@ -23,6 +23,7 @@
           "
         >
           <div class="tank-cannon"></div>
+          <div class="tank-cannon rear" *ngIf="player.stats.rearGuard"></div>
           <div class="tank-body" [style.background-color]="player.color"></div>
         </div>
 
@@ -63,6 +64,19 @@
         [style.left.px]="orb.x - 5"
         [style.top.px]="orb.y - 5"
       ></div>
+      <!-- Enemies -->
+      <div
+        *ngFor="let enemy of enemies; trackBy: trackByFn"
+        class="enemy"
+        [style.left.px]="enemy.x - enemy.size/2"
+        [style.top.px]="enemy.y - enemy.size/2"
+        [style.width.px]="enemy.size"
+        [style.height.px]="enemy.size"
+      >
+          <div class="enemy-hp-bar">
+              <div class="enemy-hp-fill" [style.width.%]="(enemy.hp / enemy.maxHp) * 100"></div>
+          </div>
+      </div>
     </div>
 
     <div class="controls">
@@ -76,6 +90,9 @@
       <h2>🎮 Tiny Tanks Time</h2>
       <p>Players: {{ players.length }}</p>
       <p>Bullets: {{ bullets.length }}</p>
+      <button (click)="triggerDebugLevelUp()" style="margin-top:10px; padding: 5px 10px; background: #ff4757; color: white; border: none; border-radius: 4px; cursor: pointer; pointer-events: auto; position: relative; z-index: 200;">
+        DEBUG: Level Up
+      </button>
     </div>
 
     <!-- EXP Bar -->

@@ -10,6 +10,8 @@ body {
   font-family: 'Arial', sans-serif;
   overflow: hidden;
   background: #1a1a1a;
+  user-select: none;
+  -webkit-user-select: none; /* Safari */
 }
 
 html, body {

@@ -100,7 +100,7 @@ exports.AppService = AppService = tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GameGateway = void 0;
 const tslib_1 = __webpack_require__(4);
@@ -114,6 +114,7 @@ let GameGateway = class GameGateway {
             players: new Map(),
             bullets: [],
             orbs: [],
+            enemies: [],
         };
         this.colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3'];
         // Map dimensions
@@ -136,14 +137,207 @@ let GameGateway = class GameGateway {
             { id: 'magnetism_1', name: 'Magnetism I', description: '+20% Pickup Range', rarity: 'Common', apply: p => { p.stats.pickupRange *= 1.2; } },
             { id: 'titan_hull_2', name: 'Titan Hull II', description: '+40% Max HP', rarity: 'Rare', apply: p => { p.stats.maxHp *= 1.4; p.hp = p.stats.maxHp; } },
             { id: 'rapid_fire_2', name: 'Rapid Fire II', description: '+20% Fire Rate', rarity: 'Rare', apply: p => { p.stats.fireRate *= 0.8; } },
-            { id: 'double_barrel_1', name: 'Double Barrel', description: '+1 Bullet', rarity: 'Rare', apply: p => { p.stats.bulletCount += 1; } },
+            { id: 'double_barrel_1', name: 'Double Barrel', description: '+1 Bullet', rarity: 'Rare', apply: p => { p.stats.bulletCount += 1; if (p.stats.spreadAngle < 15)
+                    p.stats.spreadAngle = 15; } },
             { id: 'titan_hull_3', name: 'Titan Hull III', description: '+60% Max HP', rarity: 'Epic', apply: p => { p.stats.maxHp *= 1.6; p.hp = p.stats.maxHp; } },
             { id: 'rear_guard', name: 'Rear Guard', description: 'Back Cannon', rarity: 'Epic', apply: p => { p.stats.rearGuard = true; } },
             { id: 'titan_hull_4', name: 'Titan Hull IV', description: '+100% Max HP', rarity: 'Legendary', apply: p => { p.stats.maxHp *= 2.0; p.hp = p.stats.maxHp; } },
+            // New Upgrades
+            { id: 'velocity_1', name: 'Velocity I', description: '+20% Bullet Speed', rarity: 'Common', apply: p => { p.stats.bulletSpeed *= 1.2; } },
+            { id: 'velocity_2', name: 'Velocity II', description: '+30% Bullet Speed', rarity: 'Rare', apply: p => { p.stats.bulletSpeed *= 1.3; } },
+            { id: 'sniper_1', name: 'Sniper Scope', description: '+50% Range', rarity: 'Rare', apply: p => { p.stats.bulletLifeTime *= 1.5; } },
+            { id: 'triple_shot', name: 'Triple Shot', description: 'Fire 3 bullets', rarity: 'Legendary', apply: p => { p.stats.bulletCount = 3; if (p.stats.spreadAngle < 30)
+                    p.stats.spreadAngle = 30; } },
+            { id: 'regen_1', name: 'Regeneration I', description: '+1 HP/sec', rarity: 'Rare', apply: p => { p.stats.regenRate += 1; } },
+            { id: 'regen_2', name: 'Regeneration II', description: '+2 HP/sec', rarity: 'Epic', apply: p => { p.stats.regenRate += 2; } },
+            // Expanded Upgrades
+            { id: 'heavy_shells', name: 'Heavy Shells', description: '+20% Damage', rarity: 'Rare', apply: p => { p.stats.bulletDamage *= 1.2; } },
+            { id: 'rapid_fire_3', name: 'Rapid Fire III', description: '+15% Fire Rate', rarity: 'Epic', apply: p => { p.stats.fireRate *= 0.85; } },
+            { id: 'turbo_engine', name: 'Turbo Engine', description: '+20% Move Speed', rarity: 'Rare', apply: p => { p.stats.moveSpeed *= 1.2; } },
+            { id: 'magnet_1', name: 'Magnet', description: '+50% Pickup Range', rarity: 'Uncommon', apply: p => { p.stats.pickupRange *= 1.5; } }
         ];
         // Initial orb spawn
         for (let i = 0; i < 50; i++) {
             this.spawnOrb();
+        }
+        // Regeneration Loop
+        setInterval(() => {
+            for (const player of this.gameState.players.values()) {
+                if (player.stats.regenRate > 0 && player.hp < player.stats.maxHp) {
+                    player.hp = Math.min(player.hp + player.stats.regenRate, player.stats.maxHp);
+                    if (this.server) {
+                        this.server.emit('playerHit', {
+                            id: player.id,
+                            hp: player.hp,
+                            maxHp: player.stats.maxHp,
+                            x: player.x,
+                            y: player.y
+                        });
+                    }
+                }
+            }
+        }, 1000);
+        // Enemy Spawning Loop
+        setInterval(() => {
+            if (this.gameState.enemies.length < 50) {
+                this.spawnEnemy();
+            }
+        }, 2000); // Trigger every 2s
+        // Enemy AI & Physics Loop
+        setInterval(() => {
+            this.updateEnemies();
+        }, 50);
+    }
+    spawnEnemy() {
+        // Random pos
+        const x = Math.random() * (this.MAP_WIDTH - 100) + 50;
+        const y = Math.random() * (this.MAP_HEIGHT - 100) + 50;
+        // Check collision with obstacles
+        if (this.checkCollision(x, y, 20))
+            return; // Try next time
+        // Basic Balancing
+        const baseHp = 30;
+        const baseExp = 15;
+        const enemy = {
+            id: `enemy-${Date.now()}-${Math.random()}`,
+            x,
+            y,
+            hp: baseHp,
+            maxHp: baseHp,
+            speed: 100 + Math.random() * 50, // 100-150 speed
+            size: 20,
+            damage: 10,
+            expValue: baseExp
+        };
+        this.gameState.enemies.push(enemy);
+        // Optimization: Depending on network, might not want to emit single spawn if efficient sync is needed, 
+        // but for 50 enemies it's fine. 
+        // However, we mainly sync via full broadcasts or deltas. 
+        // Let's rely on the AI loop broadcast or a specific emit?
+        // Let's rely on standard state updates or add an event.
+        // For simplicity, let's just let the client discover it next sync or emit specific?
+        // Let's emit specific for "juice" (animations) if needed, but 'gameState' covers it for joiners.
+        // We will broadcast 'enemySpawned' for incremental updates.
+        if (this.server)
+            this.server.emit('enemySpawned', enemy);
+    }
+    updateEnemies() {
+        const dt = 0.05;
+        this.gameState.enemies.forEach(enemy => {
+            // 1. Find target (nearest player)
+            let target = null;
+            let minDist = 999999;
+            for (const player of this.gameState.players.values()) {
+                const dx = player.x - enemy.x;
+                const dy = player.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    target = player;
+                }
+            }
+            if (target) {
+                // Move towards target
+                const dx = target.x - enemy.x;
+                const dy = target.y - enemy.y;
+                // Normalize
+                if (minDist > 1) {
+                    const moveX = (dx / minDist) * enemy.speed * dt;
+                    const moveY = (dy / minDist) * enemy.speed * dt;
+                    // Collision check (Map & Obstacles)
+                    if (!this.checkCollision(enemy.x + moveX, enemy.y + moveY, enemy.size)) {
+                        enemy.x += moveX;
+                        enemy.y += moveY;
+                    }
+                    // Player Collision (Damage)
+                    if (minDist < (enemy.size + 20)) { // 20 = player radius
+                        // Hit player
+                        // Simple cooldown check? or just DPS?
+                        // Let's do a simple probability check or cooldown to avoid insta-kill
+                        // Or just low damage per tick.
+                        // 50ms tick. 10 damage is too high per tick (200 dps).
+                        // Let's do 1 damage per tick -> 20 dps.
+                        target.hp -= 1;
+                        if (target.hp <= 0) {
+                            this.respawnPlayer(target);
+                        }
+                        else {
+                            // broadcast hit
+                            if (this.server) {
+                                this.server.emit('playerHit', {
+                                    id: target.id,
+                                    hp: target.hp,
+                                    maxHp: target.stats.maxHp,
+                                    x: target.x,
+                                    y: target.y
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        // Broadcast enemy positions? 
+        // Doing this every 50ms for 50 enemies might be heavy.
+        // Let's throttle or assume client interpolation?
+        // Let's just emit 'enemiesMoved' with all enemies.
+        if (this.server && this.gameState.enemies.length > 0) {
+            // Optimization: Only send x/y/id/hp?
+            // Sending full object acceptable for < 100 entities on local/LAN or good internet.
+            this.server.emit('enemiesMoved', this.gameState.enemies);
+        }
+    }
+    respawnPlayer(player) {
+        // Drop XP Orbs
+        const xpToDrop = Math.floor(player.exp * 0.5); // Drop 50% of current EXP
+        if (xpToDrop > 0) {
+            const orbCount = Math.min(10, Math.ceil(xpToDrop / 20)); // Limit distinct orbs
+            const valPerOrb = Math.floor(xpToDrop / orbCount);
+            for (let i = 0; i < orbCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 50;
+                const orb = {
+                    id: `orb-drop-${Date.now()}-${Math.random()}`,
+                    x: player.x + Math.cos(angle) * dist,
+                    y: player.y + Math.sin(angle) * dist,
+                    value: valPerOrb
+                };
+                // Validate bounds
+                if (orb.x > 0 && orb.x < this.MAP_WIDTH && orb.y > 0 && orb.y < this.MAP_HEIGHT) {
+                    this.gameState.orbs.push(orb);
+                    if (this.server)
+                        this.server.emit('orbSpawned', orb);
+                }
+            }
+        }
+        player.hp = player.maxHp;
+        player.x = Math.random() * 3800 + 100;
+        player.y = Math.random() * 3800 + 100;
+        player.exp = 0; // Reset exp or keep remaining? Standard io games reset or keep level but lose progress.
+        // Let's reset EXP bar but keep level? Or full reset?
+        // User request: "Level up system" usually implies potential progress loss or persistence.
+        // "drop exp based on current lvl" implies losing it.
+        // Implication: You lose the exp you drop.
+        // Let's set exp to 0 for the current level.
+        if (this.server) {
+            this.server.emit('playerHit', {
+                id: player.id,
+                hp: player.hp,
+                maxHp: player.stats.maxHp,
+                x: player.x,
+                y: player.y
+            });
+            // Force teleport visual if needed or client handles seq
+            this.server.emit('playerMoved', { ...player }); // Force update pos
+            // Update EXP UI
+            this.server.emit('playerExpUpdate', {
+                id: player.id,
+                exp: player.exp,
+                maxExp: player.maxExp,
+                level: player.level,
+                hp: player.hp,
+                maxHp: player.maxHp
+            });
         }
     }
     spawnOrb() {
@@ -208,7 +402,10 @@ let GameGateway = class GameGateway {
                 bulletSpeed: 360,
                 moveSpeed: 240,
                 pickupRange: 35, // tankRadius + orbRadius
-                rearGuard: false
+                rearGuard: false,
+                bulletLifeTime: 3000,
+                spreadAngle: 0,
+                regenRate: 0
             },
             immuneUntil: 0,
             pendingLevelUp: false
@@ -219,6 +416,7 @@ let GameGateway = class GameGateway {
             players: Array.from(this.gameState.players.values()),
             bullets: this.gameState.bullets,
             orbs: this.gameState.orbs,
+            enemies: this.gameState.enemies
         });
         // Notify all other players about the new player
         client.broadcast.emit('playerJoined', player);
@@ -288,17 +486,60 @@ let GameGateway = class GameGateway {
         const shooter = this.gameState.players.get(client.id);
         if (!shooter)
             return;
-        const bullet = {
-            id: `${client.id}-${Date.now()}`,
-            x: data.x,
-            y: data.y,
-            angle: data.angle,
-            playerId: client.id,
-        };
-        this.gameState.bullets.push(bullet);
-        this.server.emit('bulletShot', bullet);
-        // Server-side bullet simulation for hit detection
-        const bulletSpeed = 360; // px/sec
+        const count = shooter.stats.bulletCount;
+        const spread = shooter.stats.spreadAngle * (Math.PI / 180); // convert to radians
+        // Calculate start angle logic
+        // specific logic: if 1 bullet, angle is center. 
+        // Is 2 bullets? spread evenly? usually 2 bullets is +/- offset
+        // Let's implement: center is data.angle.
+        // offsets: if count=1 -> [0]
+        // if count=3 -> [-spread/2, 0, spread/2] ?? or [-ang, 0, +ang]
+        // Simple approach: start from angle - spread/2, increment by spread/(count-1)
+        let startAngle = data.angle;
+        let stepAngle = 0;
+        if (count > 1) {
+            startAngle = data.angle - spread / 2;
+            stepAngle = spread / (count - 1);
+        }
+        for (let i = 0; i < count; i++) {
+            const currentAngle = (count === 1) ? startAngle : startAngle + (stepAngle * i);
+            const bullet = {
+                id: `${client.id}-${Date.now()}-${i}`,
+                x: data.x,
+                y: data.y,
+                angle: currentAngle,
+                playerId: client.id,
+            };
+            this.gameState.bullets.push(bullet);
+            this.server.emit('bulletShot', bullet);
+            this.simulateBullet(bullet, shooter);
+        }
+        // Rear Guard Logic
+        if (shooter.stats.rearGuard) {
+            // Fire one bullet backwards from the rear cannon (opposite to front cannon)
+            const rearAngle = data.angle + Math.PI;
+            // data.x/y is the front cannon tip (approx 40px from center).
+            // We want rear cannon tip (approx 40px from center in opposite direction).
+            // So we subtract the front offset vector * 2.
+            const offset = 40;
+            const rearX = data.x - Math.cos(data.angle) * (offset * 2);
+            const rearY = data.y - Math.sin(data.angle) * (offset * 2);
+            const rearBullet = {
+                id: `${client.id}-rear-${Date.now()}`,
+                x: rearX,
+                y: rearY,
+                angle: rearAngle,
+                playerId: client.id
+            };
+            this.gameState.bullets.push(rearBullet);
+            this.server.emit('bulletShot', rearBullet);
+            this.simulateBullet(rearBullet, shooter);
+        }
+    }
+    // Refactored simulation to reuse logic
+    simulateBullet(bullet, shooter) {
+        const bulletSpeed = shooter.stats.bulletSpeed;
+        const lifeTime = shooter.stats.bulletLifeTime;
         const bulletRadius = 5;
         const tankRadius = 20;
         let active = true;
@@ -319,31 +560,18 @@ let GameGateway = class GameGateway {
                 const dy = player.y - bullet.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 if (dist < tankRadius + bulletRadius) {
-                    // Check immunity
                     if (player.immuneUntil > Date.now()) {
-                        // Immune!
                         this.removeBullet(bullet.id);
                         active = false;
                         break;
                     }
-                    // Hit!
-                    player.hp -= 10; // Use bullet damage from shooter stats later?
+                    player.hp -= shooter.stats.bulletDamage;
                     if (player.hp <= 0) {
-                        // Player died
-                        player.hp = player.maxHp;
-                        player.x = Math.random() * 3800 + 100;
-                        player.y = Math.random() * 3800 + 100;
-                        // Give EXP to shooter
+                        this.respawnPlayer(player);
+                        // Bonus EXP for kill
                         shooter.exp += 50;
-                        if (shooter.exp >= shooter.maxExp && !shooter.pendingLevelUp) {
-                            shooter.pendingLevelUp = true;
-                            const shooterSocket = this.server.sockets.sockets.get(shooter.id);
-                            if (shooterSocket) {
-                                this.sendLevelUpOptions(shooterSocket);
-                            }
-                        }
+                        this.checkLevelUp(shooter);
                     }
-                    // Broadcast updates
                     this.server.emit('playerHit', {
                         id: player.id,
                         hp: player.hp,
@@ -359,7 +587,52 @@ let GameGateway = class GameGateway {
                         hp: shooter.hp,
                         maxHp: shooter.maxHp
                     });
-                    // Remove bullet
+                    this.removeBullet(bullet.id);
+                    active = false;
+                    break;
+                }
+            }
+            if (!active)
+                return; // Stop if hit player
+            // Check collision with ENEMIES
+            for (let i = 0; i < this.gameState.enemies.length; i++) {
+                const enemy = this.gameState.enemies[i];
+                const dx = enemy.x - bullet.x;
+                const dy = enemy.y - bullet.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < enemy.size + bulletRadius) {
+                    // HIT ENEMY
+                    enemy.hp -= shooter.stats.bulletDamage;
+                    // Visual feedback?
+                    if (enemy.hp <= 0) {
+                        // Enemy Died
+                        shooter.exp += enemy.expValue;
+                        this.checkLevelUp(shooter);
+                        // Remove enemy
+                        this.gameState.enemies.splice(i, 1);
+                        this.server.emit('enemyDied', enemy.id);
+                        this.server.emit('playerExpUpdate', {
+                            id: shooter.id,
+                            exp: shooter.exp,
+                            maxExp: shooter.maxExp,
+                            level: shooter.level,
+                            hp: shooter.hp,
+                            maxHp: shooter.maxHp
+                        });
+                        // Spawn Orb at location
+                        const orb = {
+                            id: `orb-${Date.now()}-${Math.random()}`,
+                            x: enemy.x, // + offset?
+                            y: enemy.y,
+                            value: 10 // Bonus orb
+                        };
+                        this.gameState.orbs.push(orb);
+                        this.server.emit('orbSpawned', orb);
+                    }
+                    else {
+                        // Update enemy HP visual?
+                        // Could emit 'enemyHit'
+                    }
                     this.removeBullet(bullet.id);
                     active = false;
                     break;
@@ -371,13 +644,13 @@ let GameGateway = class GameGateway {
                 active = false;
             }
         }, 50);
-        // Cleanup after 3 seconds if no hit
+        // Cleanup after lifetime
         setTimeout(() => {
             if (active) {
                 this.removeBullet(bullet.id);
                 active = false;
             }
-        }, 3000);
+        }, lifeTime);
     }
     removeBullet(bulletId) {
         this.gameState.bullets = this.gameState.bullets.filter(b => b.id !== bulletId);
@@ -424,9 +697,29 @@ let GameGateway = class GameGateway {
             maxExp: player.maxExp,
             level: player.level,
             hp: player.hp,
-            maxHp: player.stats.maxHp
+            maxHp: player.stats.maxHp,
+            stats: player.stats
         });
         this.server.emit('playerImmunity', { id: player.id, immuneUntil: 0 });
+    }
+    handleDebugLevelUp(client) {
+        const player = this.gameState.players.get(client.id);
+        if (!player)
+            return;
+        // Give enough XP
+        player.exp = player.maxExp;
+        // Trigger level up
+        this.sendLevelUpOptions(client);
+        // Sync XP bar
+        this.server.emit('playerExpUpdate', {
+            id: player.id,
+            exp: player.exp,
+            maxExp: player.maxExp,
+            level: player.level,
+            hp: player.hp,
+            maxHp: player.stats.maxHp,
+            stats: player.stats
+        });
     }
     generateUpgrades(count) {
         const options = [];
@@ -450,6 +743,15 @@ let GameGateway = class GameGateway {
             }
         }
         return options;
+    }
+    checkLevelUp(player) {
+        if (player.exp >= player.maxExp && !player.pendingLevelUp) {
+            player.pendingLevelUp = true;
+            const socket = this.server.sockets.sockets.get(player.id);
+            if (socket) {
+                this.sendLevelUpOptions(socket);
+            }
+        }
     }
 };
 exports.GameGateway = GameGateway;
@@ -481,6 +783,13 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [String, typeof (_d = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _d : Object]),
     tslib_1.__metadata("design:returntype", void 0)
 ], GameGateway.prototype, "handleSelectUpgrade", null);
+tslib_1.__decorate([
+    (0, websockets_1.SubscribeMessage)('debugLevelUp'),
+    tslib_1.__param(0, (0, websockets_1.ConnectedSocket)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_e = typeof socket_io_1.Socket !== "undefined" && socket_io_1.Socket) === "function" ? _e : Object]),
+    tslib_1.__metadata("design:returntype", void 0)
+], GameGateway.prototype, "handleDebugLevelUp", null);
 exports.GameGateway = GameGateway = tslib_1.__decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {

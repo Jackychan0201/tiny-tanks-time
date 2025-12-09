@@ -2,6 +2,20 @@ import { Component, OnInit, OnDestroy, HostListener, ViewChild, ElementRef } fro
 import { CommonModule } from '@angular/common';
 import { GameService } from './game.service';
 
+export interface PlayerStats {
+  maxHp: number;
+  fireRate: number;
+  bulletCount: number;
+  bulletDamage: number;
+  bulletSpeed: number;
+  moveSpeed: number;
+  pickupRange: number;
+  rearGuard: boolean;
+  bulletLifeTime: number;
+  spreadAngle: number;
+  regenRate: number;
+}
+
 export interface Player {
   id: string;
   x: number;
@@ -14,6 +28,7 @@ export interface Player {
   level: number;
   maxExp: number;
   immuneUntil?: number;
+  stats: PlayerStats;
 }
 
 export interface Bullet {
@@ -38,6 +53,15 @@ export interface Upgrade {
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
 }
 
+export interface Enemy {
+  id: string;
+  x: number;
+  y: number;
+  size: number;
+  hp: number;
+  maxHp: number;
+}
+
 @Component({
   selector: 'app-game',
   standalone: true,
@@ -51,6 +75,7 @@ export class GameComponent implements OnInit, OnDestroy {
   players: Player[] = [];
   bullets: Bullet[] = [];
   orbs: Orb[] = [];
+  enemies: Enemy[] = [];
   currentPlayer: Player | null = null;
   levelUpOptions: Upgrade[] | null = null;
   keys: { [key: string]: boolean } = {};
@@ -134,8 +159,42 @@ export class GameComponent implements OnInit, OnDestroy {
       this.orbs = this.orbs.filter(o => o.id !== orbId);
     });
 
+    this.gameService.onEnemySpawned().subscribe((enemy) => {
+      if (enemy) this.enemies.push(enemy);
+    });
+
+    this.gameService.onEnemiesMoved().subscribe((enemies) => {
+      if (enemies) {
+          // Full sync or delta? Server sends full array currently
+          // Optimization: Update existing instances instead of replace to avoid flicker if Angular tracks by identity?
+          // Angular *ngFor trackBy:identifyEnemy helps.
+          // But for now, simple replace or update.
+          // Server sends ALL enemies.
+          this.enemies = enemies;
+      }
+    });
+
+    this.gameService.onEnemyDied().subscribe((id) => {
+      this.enemies = this.enemies.filter(e => e.id !== id);
+    });
+
     this.gameService.onLevelUpOptions().subscribe((options) => {
       this.levelUpOptions = options;
+    });
+
+    this.gameService.onPlayerExpUpdate().subscribe((data) => {
+      if (!data) return;
+      const player = this.players.find(p => p.id === data.id);
+      if (player) {
+         player.exp = data.exp;
+         player.maxExp = data.maxExp;
+         player.level = data.level;
+         player.hp = data.hp;
+         player.maxHp = data.maxHp;
+         if (data.stats) {
+            player.stats = data.stats;
+         }
+      }
     });
 
     this.gameService.onPlayerImmunity().subscribe((data) => {
@@ -291,13 +350,18 @@ export class GameComponent implements OnInit, OnDestroy {
     if (this.levelUpOptions) return;
 
     const now = Date.now();
-    if (now - this.lastShotAt < this.SHOOT_COOLDOWN_MS) return;
+    const cooldown = this.currentPlayer.stats ? this.currentPlayer.stats.fireRate : this.SHOOT_COOLDOWN_MS;
+    if (now - this.lastShotAt < cooldown) return;
     this.lastShotAt = now;
     
     const bulletX = this.currentPlayer.x + Math.cos(this.currentPlayer.angle) * 40;
     const bulletY = this.currentPlayer.y + Math.sin(this.currentPlayer.angle) * 40;
     
     this.gameService.shoot(bulletX, bulletY, this.currentPlayer.angle);
+  }
+
+  triggerDebugLevelUp() {
+    this.gameService.debugLevelUp();
   }
 
   startGame() {
@@ -388,5 +452,9 @@ export class GameComponent implements OnInit, OnDestroy {
 
   isImmune(player: Player): boolean {
     return !!player.immuneUntil && player.immuneUntil > Date.now();
+  }
+
+  trackByFn(index: number, item: { id: string }): string {
+    return item.id; 
   }
 }
