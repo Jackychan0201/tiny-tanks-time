@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  backendUrl: 'https://YOUR_BACKEND_URL'
+  backendUrl: 'https://tiny-tanks-time.onrender.com'
 };
