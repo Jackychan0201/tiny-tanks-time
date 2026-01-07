@@ -653,7 +653,6 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
 }
 
-<<<<<<< HEAD
 .enemy {
   position: absolute;
   background-color: #ff4757;
@@ -678,7 +677,6 @@
     background: #ff6b81;
     border-radius: 2px;
 }
-=======
 /* Upgrades Dashboard */
 .upgrades-dashboard {
   position: absolute;
@@ -985,4 +983,3 @@
 .death-button:active {
   transform: translateY(0);
 }
->>>>>>> c3a0aff (stats, upgrades, bots)
